@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Serve Timer</title>
+<meta name="theme-color" content="#007aff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Serve Timer">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{--bg:#f2f2f7;--card:#fff;--ink:#1c1c1e;--mute:#6e6e73;--line:#e5e5ea;--chip:#e5e5ea;--blue:#007aff;--green:#34c759;--red:#ff3b30;--disp:#1c1c1e;--disp-ink:#30d158;--field:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000;--card:#1c1c1e;--ink:#f2f2f7;--mute:#98989f;--line:#38383a;--chip:#2c2c2e;--disp:#000;--field:#2c2c2e}}
+:root[data-theme="dark"]{--bg:#000;--card:#1c1c1e;--ink:#f2f2f7;--mute:#98989f;--line:#38383a;--chip:#2c2c2e;--disp:#000;--field:#2c2c2e}
+*{box-sizing:border-box;touch-action:manipulation;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:12px;background:var(--bg);color:var(--ink)}
+.app{display:grid;gap:12px;grid-template-columns:1fr;max-width:1100px;margin:0 auto}
+@media(min-width:800px){.app{grid-template-columns:1.1fr .9fr;align-items:start}}
+.panel{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:12px}
+h2{margin:0;font-size:17px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;max-height:170px;overflow-y:auto;padding:2px}
+.pbtn{padding:12px 6px;background:var(--chip);color:var(--ink);border:2px solid transparent;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none}
+.pbtn.on{background:var(--blue);color:#fff}
+.disp{background:var(--disp);color:var(--disp-ink);font:700 64px/1.1 ui-monospace,Menlo,monospace;text-align:center;padding:14px;border-radius:12px}
+.tbtn{border:none;border-radius:12px;font-size:30px;font-weight:700;color:#fff;padding:34px 10px;cursor:pointer;user-select:none;-webkit-user-select:none;background:var(--green)}
+.tbtn.stop{background:var(--red)}
+.tbtn:disabled{opacity:.4}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.chip{flex:none;border:none;background:var(--chip);color:var(--ink);padding:7px 12px;border-radius:16px;font-size:14px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--blue);color:#fff}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+.stat{background:var(--chip);border-radius:8px;padding:6px 2px}
+.stat b{display:block;font-size:16px}
+.stat span{font-size:11px;color:var(--mute)}
+.logbox{max-height:340px;overflow-y:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+th{color:var(--mute);font-size:12px}
+.x{border:none;background:none;color:var(--red);font-size:20px;cursor:pointer;padding:0 6px}
+.row{display:flex;gap:8px}
+.btn{flex:1;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:700;color:#fff;background:var(--blue);cursor:pointer}
+.btn.grey{background:#8e8e93}
+input{flex:1;min-width:0;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
+.ritem{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
+.ritem span{flex:1}
+.sm{border:none;border-radius:6px;padding:6px 9px;background:var(--chip);color:var(--ink);cursor:pointer;font-size:14px}
+.sm.del{background:var(--red);color:#fff}
+.mute{color:var(--mute);font-size:13px}
+select{flex:1;min-width:0;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
+.btn.danger{background:var(--red);flex:none}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:#333;color:#fff;padding:10px 14px;border-radius:10px;display:none;gap:12px;align-items:center;z-index:5}
+#toast button{background:none;border:none;color:#64b5ff;font-weight:700;font-size:15px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel">
+    <h2>1. Select server</h2>
+    <div class="grid" id="grid"></div>
+    <div class="disp" id="disp">0.000s</div>
+    <div class="mute" id="rec" style="text-align:center"></div>
+    <button class="tbtn" id="tbtn">TAP TO START</button>
+  </div>
+
+  <div class="panel">
+    <h2>Serve log</h2>
+    <div class="row"><select id="gameSel"></select><button class="btn" id="newGame" style="flex:0 0 auto;padding:10px 14px">New game</button></div>
+    <div class="chips" id="chips"></div>
+    <div class="stats" id="stats"></div>
+    <button class="btn danger" id="clear" style="display:none"></button>
+    <div class="logbox">
+      <table><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table>
+      <div class="mute" id="empty" style="padding:10px 0">No serves yet.</div>
+    </div>
+    <div class="row">
+      <button class="btn grey" id="manage">Manage roster</button>
+      <button class="btn" id="export">Export CSV</button>
+    </div>
+    <div id="roster" style="display:none">
+      <h2>Roster</h2>
+      <div class="row" style="margin:8px 0">
+        <input id="newName" placeholder="Name or #" maxlength="30">
+        <button class="btn" style="flex:0 0 70px;background:var(--green)" id="add">Add</button>
+      </div>
+      <div id="rlist"></div>
+      <div class="mute" style="margin-top:8px">Serves stay with a player even if you reorder the roster.</div>
+    </div>
+  </div>
+</div>
+<div id="toast"><span id="toastMsg"></span><button id="undo">Undo</button></div>
+
+<script>
+const KEY = 'serveTimer:v3';
+let S = { players: [], serves: [], games: [], gid: null, sel: null };
+let filter = 'all', viewGame = 'all', clearArmed = false, armed = null, running = false, t0 = 0, raf = 0, lastDel = null, toastTimer = 0;
+
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  Object.assign(e, props || {});
+  kids.forEach(k => e.append(k));
+  return e;
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) S = Object.assign(S, JSON.parse(raw));
+  } catch (e) {}
+  if (!S.players.length && !S.serves.length) {
+    S.players = ['Sophie', 'Maia W', 'Sofia', 'Emmie', 'Mary', 'Maia G', 'Georgia', 'Tiffany', 'Milla', 'Hana', 'Henrietta', 'India Jane'].map(n => ({ id: uid(), name: n }));
+  }
+  if (!S.players.find(p => p.id === S.sel)) S.sel = S.players[0] ? S.players[0].id : null;
+  if (!S.games) S.games = [];
+  if (!S.games.length) S.games.push({ id: uid(), name: 'Game 1', ts: Date.now() });
+  if (!S.games.find(g => g.id === S.gid)) S.gid = S.games[S.games.length - 1].id;
+  S.serves.forEach(s => { if (!s.gid) s.gid = S.games[0].id; });
+  viewGame = S.gid;
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+}
+
+const nameOf = s => { const p = S.players.find(p => p.id === s.pid); return p ? p.name : s.n + ' (removed)'; };
+
+/* ---------- players ---------- */
+function renderGrid() {
+  const g = $('grid'); g.replaceChildren();
+  S.players.forEach(p => {
+    const b = h('button', { className: 'pbtn' + (p.id === S.sel ? ' on' : ''), textContent: p.name });
+    b.onclick = () => { S.sel = p.id; save(); renderGrid(); };
+    g.append(b);
+  });
+  $('tbtn').disabled = !S.sel && !running;
+}
+
+function renderRoster() {
+  const l = $('rlist'); l.replaceChildren();
+  S.players.forEach((p, i) => {
+    const count = S.serves.filter(s => s.pid === p.id).length;
+    const up = h('button', { className: 'sm', textContent: '↑', disabled: i === 0 });
+    const dn = h('button', { className: 'sm', textContent: '↓', disabled: i === S.players.length - 1 });
+    up.onclick = () => move(i, -1); dn.onclick = () => move(i, 1);
+    const del = h('button', { className: 'sm del', textContent: armed === p.id ? 'Sure?' : 'Remove' });
+    del.onclick = () => {
+      if (armed !== p.id) { armed = p.id; renderRoster(); return; }
+      armed = null;
+      S.players.splice(i, 1);
+      if (S.sel === p.id) S.sel = S.players[0] ? S.players[0].id : null;
+      if (filter === p.id) filter = 'all';
+      save(); renderAll();
+    };
+    l.append(h('div', { className: 'ritem' }, h('span', { textContent: p.name + ' · ' + count }), up, dn, del));
+  });
+  if (!S.players.length) l.append(h('div', { className: 'mute', textContent: 'No players yet.' }));
+}
+
+function move(i, d) {
+  const j = i + d;
+  if (j < 0 || j >= S.players.length) return;
+  [S.players[i], S.players[j]] = [S.players[j], S.players[i]];
+  save(); renderAll();
+}
+
+function addPlayer() {
+  const v = $('newName').value.trim();
+  if (!v) return;
+  const p = { id: uid(), name: v };
+  S.players.push(p);
+  if (!S.sel) S.sel = p.id;
+  $('newName').value = '';
+  save(); renderAll();
+}
+
+/* ---------- log ---------- */
+function renderChips() {
+  const c = $('chips'); c.replaceChildren();
+  const mk = (id, label) => {
+    const b = h('button', { className: 'chip' + (filter === id ? ' on' : ''), textContent: label });
+    b.onclick = () => { filter = id; clearArmed = false; renderLog(); renderChips(); };
+    c.append(b);
+  };
+  mk('all', 'All');
+  S.players.forEach(p => mk(p.id, p.name));
+}
+
+function renderLog() {
+  renderGameBar(); renderClear();
+  const list = shown().slice().reverse();
+  const times = list.map(s => s.t);
+  const avg = times.length ? times.reduce((a, b) => a + b, 0) / times.length : null;
+  const f = v => v == null ? '–' : v.toFixed(3);
+  const st = $('stats'); st.replaceChildren();
+  [['Serves', times.length], ['Average', f(avg)], ['Fastest', f(times.length ? Math.min(...times) : null)], ['Slowest', f(times.length ? Math.max(...times) : null)]]
+    .forEach(([k, v]) => st.append(h('div', { className: 'stat' }, h('b', { textContent: String(v) }), h('span', { textContent: k }))));
+
+  const showName = filter === 'all';
+  const th = $('thead'); th.replaceChildren();
+  (showName ? ['Server'] : []).concat(['Time', 'When', '']).forEach(x => th.append(h('th', { textContent: x })));
+
+  const tb = $('tbody'); tb.replaceChildren();
+  list.forEach(s => {
+    const d = new Date(s.ts);
+    const today = d.toDateString() === new Date().toDateString();
+    const when = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+      (today ? '' : ' ' + d.toLocaleDateString([], { day: 'numeric', month: 'short' }));
+    const x = h('button', { className: 'x', textContent: '×', title: 'Delete' });
+    x.onclick = () => deleteServe(s.id);
+    const tr = h('tr');
+    if (showName) tr.append(h('td', {}, h('strong', { textContent: nameOf(s) })));
+    tr.append(h('td', { textContent: s.t.toFixed(3) + 's' }), h('td', { textContent: when }), h('td', {}, x));
+    tb.append(tr);
+  });
+  $('empty').style.display = list.length ? 'none' : 'block';
+}
+
+function deleteServe(id) {
+  const i = S.serves.findIndex(s => s.id === id);
+  if (i < 0) return;
+  lastDel = [S.serves[i]];
+  S.serves.splice(i, 1);
+  save(); renderLog(); renderRoster();
+  $('toastMsg').textContent = 'Serve deleted';
+  $('toast').style.display = 'flex';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').style.display = 'none'; lastDel = null; }, 5000);
+}
+$('undo').onclick = () => {
+  if (!lastDel) return;
+  S.serves.push(...lastDel); S.serves.sort((a, b) => a.ts - b.ts);
+  lastDel = null; $('toast').style.display = 'none';
+  save(); renderLog(); renderRoster();
+};
+
+/* ---------- timer ---------- */
+function tick() {
+  $('disp').textContent = ((performance.now() - t0) / 1000).toFixed(3) + 's';
+  raf = requestAnimationFrame(tick);
+}
+function handleTap() {
+  const now = performance.now();
+  const b = $('tbtn');
+  if (!running) {
+    if (!S.sel) return;
+    running = true; t0 = now;
+    b.textContent = 'TAP TO STOP'; b.className = 'tbtn stop';
+    tick();
+  } else {
+    running = false; cancelAnimationFrame(raf);
+    const t = (now - t0) / 1000;
+    $('disp').textContent = t.toFixed(3) + 's';
+    b.textContent = 'TAP TO START'; b.className = 'tbtn';
+    const p = S.players.find(p => p.id === S.sel);
+    S.serves.push({ id: uid(), gid: S.gid, pid: S.sel, n: p ? p.name : '?', t: Math.round(t * 1000) / 1000, ts: Date.now() });
+    save(); renderLog(); renderRoster();
+  }
+}
+$('tbtn').onclick = handleTap;
+
+/* ---------- export ---------- */
+function exportCSV() {
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  let csv = 'Game,Server,Flight Time (s),Date,Time\n';
+  S.serves.forEach(s => {
+    const d = new Date(s.ts);
+    csv += [q(gameName(s.gid)), q(nameOf(s)), s.t.toFixed(3), q(d.toLocaleDateString()), q(d.toLocaleTimeString())].join(',') + '\n';
+  });
+  const a = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'serve_times.csv' });
+  a.click();
+}
+
+$('add').onclick = addPlayer;
+$('newName').onkeydown = e => { if (e.key === 'Enter') addPlayer(); };
+$('manage').onclick = () => { const r = $('roster'); r.style.display = r.style.display === 'none' ? 'block' : 'none'; };
+$('export').onclick = exportCSV;
+
+const gameName = id => { const g = S.games.find(g => g.id === id); return g ? g.name : '?'; };
+const shown = () => S.serves.filter(s => (filter === 'all' || s.pid === filter) && (viewGame === 'all' || s.gid === viewGame));
+
+function toast(msg) {
+  $('toastMsg').textContent = msg;
+  $('toast').style.display = 'flex';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').style.display = 'none'; lastDel = null; }, 6000);
+}
+
+function renderGameBar() {
+  const sel = $('gameSel'); sel.replaceChildren();
+  sel.append(h('option', { value: 'all', textContent: 'All games' }));
+  S.games.slice().reverse().forEach(g => sel.append(h('option', { value: g.id, textContent: g.name + (g.id === S.gid ? ' (current)' : '') })));
+  sel.value = viewGame;
+  $('rec').textContent = 'Recording to ' + gameName(S.gid);
+}
+
+function renderClear() {
+  const n = shown().length, b = $('clear');
+  b.style.display = n ? 'block' : 'none';
+  const p = S.players.find(p => p.id === filter);
+  const who = filter === 'all' ? 'all players' : (p ? p.name : 'player');
+  const where = viewGame === 'all' ? 'all games' : gameName(viewGame);
+  b.textContent = clearArmed ? 'Tap again to clear ' + n + ' serves' : 'Clear ' + who + ' · ' + where + ' (' + n + ')';
+}
+
+$('clear').onclick = () => {
+  if (!clearArmed) {
+    clearArmed = true; renderClear();
+    setTimeout(() => { clearArmed = false; renderClear(); }, 4000);
+    return;
+  }
+  clearArmed = false;
+  const ids = new Set(shown().map(s => s.id));
+  lastDel = S.serves.filter(s => ids.has(s.id));
+  S.serves = S.serves.filter(s => !ids.has(s.id));
+  save(); renderLog(); renderRoster();
+  toast(lastDel.length + ' serves cleared');
+};
+
+$('newGame').onclick = () => {
+  const g = { id: uid(), name: 'Game ' + (S.games.length + 1), ts: Date.now() };
+  S.games.push(g); S.gid = g.id; viewGame = g.id; clearArmed = false;
+  save(); renderLog();
+};
+$('gameSel').onchange = e => { viewGame = e.target.value; clearArmed = false; renderLog(); };
+
+function renderAll() { renderGrid(); renderChips(); renderLog(); renderRoster(); }
+load(); renderAll();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
